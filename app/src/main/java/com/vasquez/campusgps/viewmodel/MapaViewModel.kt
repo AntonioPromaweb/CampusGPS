@@ -92,6 +92,40 @@ class MapaViewModel(
         const val PAUSA_SUGERENCIAS_MS = 350L
     }
 
+    // Sugerencias de búsqueda (6 lugares de la app, ordenados por distancia si hay ubicación)
+    val sugeridos: StateFlow<List<ResultadoBusqueda>> = estado
+        .map { est ->
+            val pos = if (est is UbicacionUi.Lista) est.posicion else null
+            val lista = lugaresRepo.obtenerLugares()
+            val ordenados = if (pos != null) {
+                lista.sortedBy { distanciaMetros(pos, it) }
+            } else {
+                lista
+            }
+            ordenados.take(6).map { l ->
+                ResultadoBusqueda(
+                    nombre = l.nombre,
+                    detalle = l.categoria,
+                    latitud = l.latitud,
+                    longitud = l.longitud,
+                    lugarId = l.id
+                )
+            }
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            lugaresRepo.obtenerLugares().take(6).map { l ->
+                ResultadoBusqueda(
+                    nombre = l.nombre,
+                    detalle = l.categoria,
+                    latitud = l.latitud,
+                    longitud = l.longitud,
+                    lugarId = l.id
+                )
+            }
+        )
+
     private fun String.sinTildes(): String {
         return java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
             .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")

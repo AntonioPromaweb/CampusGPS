@@ -9,6 +9,7 @@
     ]
   },
   {
+    "featureType": "all",
     "elementType": "geometry",
     "stylers": [
       {
@@ -17,6 +18,7 @@
     ]
   },
   {
+    "featureType": "all",
     "elementType": "labels.text.stroke",
     "stylers": [
       {
@@ -25,6 +27,7 @@
     ]
   },
   {
+    "featureType": "all",
     "elementType": "labels.text.fill",
     "stylers": [
       {
@@ -64,7 +67,7 @@
     "elementType": "geometry",
     "stylers": [
       {
-        "color": "#1e362a"
+        "color": "#1f4433"
       }
     ]
   },
@@ -100,7 +103,7 @@
     "elementType": "geometry",
     "stylers": [
       {
-        "color": "#0f2b20"
+        "color": "#124235"
       }
     ]
   }

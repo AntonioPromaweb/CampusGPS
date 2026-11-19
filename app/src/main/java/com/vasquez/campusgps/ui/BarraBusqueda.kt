@@ -33,9 +33,14 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -51,6 +56,7 @@ import com.vasquez.campusgps.ui.theme.obtenerEstiloCategoria
 fun BarraBusqueda(
     consulta: String,
     estado: EstadoBusqueda,
+    sugeridos: List<ResultadoBusqueda> = emptyList(),
     onConsultaCambia: (String) -> Unit,
     onBuscar: () -> Unit,
     onElegir: (ResultadoBusqueda) -> Unit,
@@ -58,13 +64,19 @@ fun BarraBusqueda(
     modifier: Modifier = Modifier
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    var tieneFoco by remember { mutableStateOf(false) }
+
+    val mostrandoSugeridos = consulta.isEmpty() && tieneFoco && sugeridos.isNotEmpty()
+    val mostrandoResultados = consulta.isNotEmpty() && estado !is EstadoBusqueda.Inactiva
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Campo de texto en forma de píldora
         OutlinedTextField(
             value = consulta,
             onValueChange = onConsultaCambia,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { tieneFoco = it.isFocused },
             placeholder = {
                 Text(
                     text = "Buscar un lugar o dirección",
@@ -95,10 +107,10 @@ fun BarraBusqueda(
             singleLine = true,
             shape = CircleShape,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             ),
@@ -111,9 +123,9 @@ fun BarraBusqueda(
             )
         )
 
-        // Panel desplegable con los resultados o estado
+        // Panel desplegable con los sugeridos o resultados
         AnimatedVisibility(
-            visible = consulta.isNotEmpty() && estado !is EstadoBusqueda.Inactiva,
+            visible = mostrandoSugeridos || mostrandoResultados,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
@@ -122,7 +134,7 @@ fun BarraBusqueda(
                     .padding(top = 6.dp)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                 shadowElevation = 8.dp
             ) {
@@ -131,7 +143,29 @@ fun BarraBusqueda(
                         .padding(vertical = 8.dp)
                         .heightIn(max = 240.dp)
                 ) {
-                    when (estado) {
+                    if (mostrandoSugeridos) {
+                        Text(
+                            text = "Sugeridos",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(sugeridos) { res ->
+                                val estilo = obtenerEstiloCategoria(res.detalle)
+                                ElementoResultado(
+                                    resultado = res,
+                                    iconoRes = estilo.iconoRes,
+                                    colorIcono = estilo.color,
+                                    onClick = {
+                                        onElegir(res)
+                                        keyboardController?.hide()
+                                    }
+                                )
+                            }
+                        }
+                    } else when (estado) {
                         is EstadoBusqueda.Buscando -> {
                             Row(
                                 modifier = Modifier
@@ -179,7 +213,7 @@ fun BarraBusqueda(
                                     if (hayLocales) {
                                         item {
                                             Text(
-                                                text = "En el campus",
+                                                text = "Lugares de la app",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.primary,
                                                 fontWeight = FontWeight.Bold,

@@ -4,19 +4,24 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -25,6 +30,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -43,6 +51,7 @@ fun PantallaMapa(vm: MapaViewModel) {
     val consulta by vm.consulta.collectAsState()
     val busqueda by vm.busqueda.collectAsState()
     val destino by vm.destino.collectAsState()
+    val sugeridos by vm.sugeridos.collectAsState()
     val contexto = LocalContext.current
 
     val lanzador = rememberLauncherForActivityResult(
@@ -73,6 +82,8 @@ fun PantallaMapa(vm: MapaViewModel) {
     }
 
     Scaffold(
+        // Mismo color que la hoja inferior para que no quede una franja distinta abajo
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {
@@ -119,6 +130,7 @@ fun PantallaMapa(vm: MapaViewModel) {
                 BarraBusqueda(
                     consulta = consulta,
                     estado = busqueda,
+                    sugeridos = sugeridos,
                     onConsultaCambia = { vm.cambiarConsulta(it) },
                     onBuscar = { vm.buscarEnMapa() },
                     onElegir = { vm.elegirResultado(it) },
@@ -129,78 +141,98 @@ fun PantallaMapa(vm: MapaViewModel) {
                 )
             }
 
-            Column(
+            // Hoja inferior: esquinas redondeadas, sombra y degradado; se monta un poco sobre el mapa
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .zIndex(1f)
+                    .offset(y = (-20).dp),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 12.dp
             ) {
-                Button(
-                    onClick = { alPulsar() },
-                    shape = CircleShape,
-                    enabled = estado !is UbicacionUi.Buscando,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                Column(
+                    modifier = Modifier.background(
+                        Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.35f), Color.Transparent)
+                        )
+                    )
                 ) {
-                    Text(
-                        text = "Obtener mi ubicación",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Button(
+                            onClick = { alPulsar() },
+                            shape = CircleShape,
+                            enabled = estado !is UbicacionUi.Buscando,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Text(
+                                text = "Obtener mi ubicación",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
 
-                when (val e = estado) {
-                    UbicacionUi.Inicial -> Text(
-                        text = "Pulsa el botón para obtener tu ubicación",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    UbicacionUi.Buscando -> Text(
-                        text = "Buscando…",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    is UbicacionUi.Lista -> Text(
-                        text = "Latitud: ${e.posicion.latitud}  ·  Longitud: ${e.posicion.longitud}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    is UbicacionUi.Error -> MensajeError(
-                        error = e,
-                        onReintentar = { alPulsar() }
-                    )
-                }
+                        when (val e = estado) {
+                            UbicacionUi.Inicial -> Text(
+                                text = "Pulsa el botón para obtener tu ubicación",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            UbicacionUi.Buscando -> Text(
+                                text = "Buscando…",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            is UbicacionUi.Lista -> Text(
+                                text = "Latitud: ${e.posicion.latitud}  ·  Longitud: ${e.posicion.longitud}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            is UbicacionUi.Error -> MensajeError(
+                                error = e,
+                                onReintentar = { alPulsar() }
+                            )
+                        }
 
-                // Botón secundario: deshabilitado mientras no haya un lugar más cercano
-                OutlinedButton(
-                    onClick = { masCercano?.let { vm.seleccionar(it.id) } },
-                    shape = CircleShape,
-                    enabled = masCercano != null,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(
-                        text = "Ir al más cercano",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
+                        // Botón secundario: deshabilitado mientras no haya un lugar más cercano
+                        OutlinedButton(
+                            onClick = { masCercano?.let { vm.seleccionar(it.id) } },
+                            shape = CircleShape,
+                            enabled = masCercano != null,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Text(
+                                text = "Ir al más cercano",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
 
-                masCercano?.let { lugar ->
-                    val metros = lugares.firstOrNull { it.lugar.id == lugar.id }?.metros
-                    Text(
-                        text = "Más cercano: ${lugar.nombre}" +
-                            (metros?.let { " (${formatearDistancia(it)})" } ?: ""),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        masCercano?.let { lugar ->
+                            val metros = lugares.firstOrNull { it.lugar.id == lugar.id }?.metros
+                            Text(
+                                text = "Más cercano: ${lugar.nombre}" +
+                                    (metros?.let { " (${formatearDistancia(it)})" } ?: ""),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // La lista va debajo con altura fija
+                    ListaLugares(
+                        lugares = lugares,
+                        seleccionado = seleccionado,
+                        onClick = { vm.seleccionar(it) },
+                        masCercanoId = masCercano?.id,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(230.dp)
                     )
                 }
             }
-
-            // La lista va debajo con altura fija
-            ListaLugares(
-                lugares = lugares,
-                seleccionado = seleccionado,
-                onClick = { vm.seleccionar(it) },
-                masCercanoId = masCercano?.id,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(230.dp)
-            )
         }
     }
 }

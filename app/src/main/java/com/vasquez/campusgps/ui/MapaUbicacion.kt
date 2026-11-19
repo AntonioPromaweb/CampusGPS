@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -84,7 +86,9 @@ fun MapaUbicacion(
     GoogleMap(
         modifier = modifier,
         cameraPositionState = camara,
-        properties = mapProperties
+        properties = mapProperties,
+        // Deja libre el logo de Google y los controles de zoom bajo la hoja inferior
+        contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         // Marcador del usuario: punto azul con anillo blanco y título "Estás aquí"
         if (estado is UbicacionUi.Lista) {

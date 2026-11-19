@@ -5,10 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -68,81 +71,96 @@ fun ListaLugares(
                 border = if (esSeleccionado) {
                     BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                 } else {
-                    null
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 }
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .height(IntrinsicSize.Min),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Ícono de la categoría dentro de un círculo de su color
+                    // Franja vertical de 4.dp del color de la categoría a la izquierda
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(estilo.color),
-                        contentAlignment = Alignment.Center
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .background(estilo.color)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = estilo.iconoRes),
-                            contentDescription = item.lugar.categoria,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        // Ícono de la categoría dentro de un círculo de su color
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(estilo.color),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = item.lugar.nombre,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (esSeleccionado) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                }
+                            Icon(
+                                painter = painterResource(id = estilo.iconoRes),
+                                contentDescription = item.lugar.categoria,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
+                        }
 
-                            if (esMasCercano) {
-                                Surface(
-                                    color = Color(0xFFE0B341),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Text(
-                                        text = "Más cercano",
-                                        color = Color.Black,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = item.lugar.nombre,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (esSeleccionado) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+
+                                if (esMasCercano) {
+                                    Surface(
+                                        color = Color(0xFFE0B341),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Más cercano",
+                                            color = Color.Black,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
                             }
+
+                            Text(
+                                text = item.lugar.categoria,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (esSeleccionado) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
                         }
 
                         Text(
-                            text = item.lugar.categoria,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (esSeleccionado) {
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                            text = item.metros?.let { formatearDistancia(it) } ?: "Sin calcular",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Text(
-                        text = item.metros?.let { formatearDistancia(it) } ?: "Sin calcular",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }
