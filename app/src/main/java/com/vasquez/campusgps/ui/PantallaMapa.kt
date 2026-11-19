@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.vasquez.campusgps.model.UbicacionUi
 import com.vasquez.campusgps.util.formatearDistancia
@@ -70,7 +70,12 @@ fun PantallaMapa(vm: MapaViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("CampusGPS") },
+                title = {
+                    Text(
+                        text = "CampusGPS",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -97,22 +102,34 @@ fun PantallaMapa(vm: MapaViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Button(
                     onClick = { alPulsar() },
-                    enabled = estado !is UbicacionUi.Buscando
+                    shape = CircleShape,
+                    enabled = estado !is UbicacionUi.Buscando,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 ) {
-                    Text("Obtener mi ubicación")
+                    Text(
+                        text = "Obtener mi ubicación",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 when (val e = estado) {
-                    UbicacionUi.Inicial -> Text("Pulsa el botón para obtener tu ubicación")
-                    UbicacionUi.Buscando -> Text("Buscando…")
+                    UbicacionUi.Inicial -> Text(
+                        text = "Pulsa el botón para obtener tu ubicación",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    UbicacionUi.Buscando -> Text(
+                        text = "Buscando…",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     is UbicacionUi.Lista -> Text(
-                        "Latitud: ${e.posicion.latitud}  ·  Longitud: ${e.posicion.longitud}"
+                        text = "Latitud: ${e.posicion.latitud}  ·  Longitud: ${e.posicion.longitud}",
+                        style = MaterialTheme.typography.bodySmall
                     )
                     is UbicacionUi.Error -> MensajeError(
                         error = e,
@@ -123,9 +140,14 @@ fun PantallaMapa(vm: MapaViewModel) {
                 // Botón secundario: deshabilitado mientras no haya un lugar más cercano
                 OutlinedButton(
                     onClick = { masCercano?.let { vm.seleccionar(it.id) } },
-                    enabled = masCercano != null
+                    shape = CircleShape,
+                    enabled = masCercano != null,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 ) {
-                    Text("Ir al más cercano")
+                    Text(
+                        text = "Ir al más cercano",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 masCercano?.let { lugar ->
@@ -133,7 +155,8 @@ fun PantallaMapa(vm: MapaViewModel) {
                     Text(
                         text = "Más cercano: ${lugar.nombre}" +
                             (metros?.let { " (${formatearDistancia(it)})" } ?: ""),
-                        fontSize = 13.sp
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -146,7 +169,7 @@ fun PantallaMapa(vm: MapaViewModel) {
                 masCercanoId = masCercano?.id,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(230.dp)
             )
         }
     }
