@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -91,9 +92,9 @@ fun PantallaMapa(vm: MapaViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Button(
                     onClick = { alPulsar() },
@@ -105,16 +106,25 @@ fun PantallaMapa(vm: MapaViewModel) {
                 when (val e = estado) {
                     UbicacionUi.Inicial -> Text("Pulsa el botón para obtener tu ubicación")
                     UbicacionUi.Buscando -> Text("Buscando…")
-                    is UbicacionUi.Lista -> {
-                        Text("Latitud: ${e.posicion.latitud}")
-                        Text("Longitud: ${e.posicion.longitud}")
-                    }
+                    is UbicacionUi.Lista -> Text(
+                        "Latitud: ${e.posicion.latitud}  ·  Longitud: ${e.posicion.longitud}"
+                    )
                     is UbicacionUi.Error -> Text(
                         e.mensaje,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             }
+
+            // La lista va debajo con altura fija
+            ListaLugares(
+                lugares = lugares,
+                seleccionado = seleccionado,
+                onClick = { vm.seleccionar(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+            )
         }
     }
 }
