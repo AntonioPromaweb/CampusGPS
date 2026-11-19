@@ -2,15 +2,21 @@ package com.vasquez.campusgps.data
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.vasquez.campusgps.model.Posicion
 import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.cancellation.CancellationException
 
-class UbicacionRepositoryGoogle(context: Context) : UbicacionRepository {
+class UbicacionRepositoryGoogle(private val context: Context) : UbicacionRepository {
 
     private val cliente = LocationServices.getFusedLocationProviderClient(context)
+
+    override fun playServicesDisponible(): Boolean =
+        GoogleApiAvailability.getInstance()
+            .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
 
     // El permiso lo pide la pantalla antes de llamar a buscar()
     @SuppressLint("MissingPermission")
@@ -21,7 +27,8 @@ class UbicacionRepositoryGoogle(context: Context) : UbicacionRepository {
         if (ubicacion != null) {
             Result.success(Posicion(ubicacion.latitude, ubicacion.longitude))
         } else {
-            Result.failure(IllegalStateException("No se pudo obtener la ubicación"))
+            // getCurrentLocation devuelve null si no puede determinar la ubicación (GPS apagado)
+            Result.failure(UbicacionNoDisponibleException())
         }
     } catch (e: CancellationException) {
         throw e
