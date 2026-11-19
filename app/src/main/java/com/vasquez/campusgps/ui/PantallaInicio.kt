@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -366,11 +367,11 @@ fun PantallaInicio(
             val h = size.height
 
             val routePath = Path().apply {
-                moveTo(w * 0.18f, h * 0.18f)
+                moveTo(w * 0.80f, h * 0.30f)
                 cubicTo(
-                    w * 0.45f, h * 0.12f,
-                    w * 0.78f, h * 0.32f,
-                    w * 0.50f, h * 0.48f
+                    w * 0.60f, h * 0.20f,
+                    w * 0.20f, h * 0.26f,
+                    w * 0.14f, h * 0.46f
                 )
             }
 
@@ -600,6 +601,8 @@ fun PantallaInicio(
                         contentDescription = "Chaski perdido intentando leer un mapa",
                         modifier = Modifier
                             .height(260.dp)
+                            // Proporción del vector (120x160): sin esto no se escala hacia arriba
+                            .aspectRatio(120f / 160f)
                             .offset(y = (floatY + jumpY).dp)
                             .rotate(swayRotation)
                             .clickable {
