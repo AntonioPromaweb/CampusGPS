@@ -34,7 +34,8 @@ fun ListaLugares(
     lugares: List<LugarConDistancia>,
     seleccionado: Int?,
     onClick: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    masCercanoId: Int? = null
 ) {
     LazyColumn(
         modifier = modifier,
@@ -71,7 +72,9 @@ fun ListaLugares(
                             .padding(end = 10.dp)
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1E88E5))
+                            .background(
+                                if (item.lugar.id == masCercanoId) Color(0xFF43A047) else Color(0xFF1E88E5)
+                            )
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(

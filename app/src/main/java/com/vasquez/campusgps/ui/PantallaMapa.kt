@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -24,8 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.vasquez.campusgps.model.UbicacionUi
+import com.vasquez.campusgps.util.formatearDistancia
 import com.vasquez.campusgps.viewmodel.MapaViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +37,7 @@ fun PantallaMapa(vm: MapaViewModel) {
     val estado by vm.estado.collectAsState()
     val lugares by vm.lugares.collectAsState()
     val seleccionado by vm.seleccionado.collectAsState()
+    val masCercano by vm.masCercano.collectAsState()
     val contexto = LocalContext.current
 
     val lanzador = rememberLauncherForActivityResult(
@@ -84,6 +88,7 @@ fun PantallaMapa(vm: MapaViewModel) {
                 estado = estado,
                 lugares = lugares,
                 seleccionado = seleccionado,
+                masCercanoId = masCercano?.id,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -114,6 +119,23 @@ fun PantallaMapa(vm: MapaViewModel) {
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+
+                // Botón secundario: deshabilitado mientras no haya un lugar más cercano
+                OutlinedButton(
+                    onClick = { masCercano?.let { vm.seleccionar(it.id) } },
+                    enabled = masCercano != null
+                ) {
+                    Text("Ir al más cercano")
+                }
+
+                masCercano?.let { lugar ->
+                    val metros = lugares.firstOrNull { it.lugar.id == lugar.id }?.metros
+                    Text(
+                        text = "Más cercano: ${lugar.nombre}" +
+                            (metros?.let { " (${formatearDistancia(it)})" } ?: ""),
+                        fontSize = 13.sp
+                    )
+                }
             }
 
             // La lista va debajo con altura fija
@@ -121,6 +143,7 @@ fun PantallaMapa(vm: MapaViewModel) {
                 lugares = lugares,
                 seleccionado = seleccionado,
                 onClick = { vm.seleccionar(it) },
+                masCercanoId = masCercano?.id,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
