@@ -30,6 +30,7 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import com.vasquez.campusgps.R
+import com.vasquez.campusgps.model.DestinoBusqueda
 import com.vasquez.campusgps.model.LugarConDistancia
 import com.vasquez.campusgps.model.UbicacionUi
 import com.vasquez.campusgps.ui.theme.obtenerEstiloCategoria
@@ -41,7 +42,8 @@ fun MapaUbicacion(
     lugares: List<LugarConDistancia>,
     seleccionado: Int?,
     masCercanoId: Int?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    destino: DestinoBusqueda? = null
 ) {
     val contexto = LocalContext.current
     val isDark = isSystemInDarkTheme()
@@ -95,7 +97,6 @@ fun MapaUbicacion(
                 ),
                 title = "Estás aquí",
                 icon = userIcon,
-                // El punto se centra sobre la posición (por defecto el ancla es la base)
                 anchor = Offset(0.5f, 0.5f)
             )
         }
@@ -130,10 +131,42 @@ fun MapaUbicacion(
                     title = lugar.nombre,
                     snippet = lugar.categoria,
                     icon = markerIcon,
-                    // La punta de la gota (47/52 del alto) debe quedar sobre el lugar
                     anchor = Offset(0.5f, 47f / 52f)
                 )
             }
+        }
+
+        // Marcador adicional para destino de búsqueda externa (color ladrillo #B5483A)
+        if (destino != null) {
+            val destinoIcon = remember {
+                crearBitmapDescriptorLugar(
+                    context = contexto,
+                    categoriaColor = Color(0xFFB5483A),
+                    iconoRes = R.drawable.ic_categoria_otro,
+                    esMasCercano = false
+                )
+            }
+            val estadoDestino = rememberUpdatedMarkerState(
+                position = LatLng(destino.latitud, destino.longitud)
+            )
+
+            LaunchedEffect(destino.latitud, destino.longitud) {
+                estadoDestino.showInfoWindow()
+                camara.animate(
+                    CameraUpdateFactory.newLatLngZoom(
+                        LatLng(destino.latitud, destino.longitud),
+                        16f
+                    )
+                )
+            }
+
+            Marker(
+                state = estadoDestino,
+                title = destino.nombre,
+                snippet = destino.detalle,
+                icon = destinoIcon,
+                anchor = Offset(0.5f, 47f / 52f)
+            )
         }
     }
 }

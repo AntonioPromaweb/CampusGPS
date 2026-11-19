@@ -3,6 +3,7 @@ package com.vasquez.campusgps.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.vasquez.campusgps.data.BuscadorRepositoryGeocoder
 import com.vasquez.campusgps.data.LugaresRepositoryLocal
 import com.vasquez.campusgps.data.UbicacionRepositoryGoogle
 
@@ -13,7 +14,8 @@ class CampusViewModelFactory(private val context: Context) : ViewModelProvider.F
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return MapaViewModel(
             ubicacionRepo = UbicacionRepositoryGoogle(context.applicationContext),
-            lugaresRepo = LugaresRepositoryLocal()
+            lugaresRepo = LugaresRepositoryLocal(),
+            buscadorRepo = BuscadorRepositoryGeocoder(context.applicationContext)
         ) as T
     }
 }

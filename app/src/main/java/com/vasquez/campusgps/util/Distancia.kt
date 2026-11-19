@@ -15,3 +15,14 @@ fun distanciaMetros(desde: Posicion, hasta: Lugar): Float {
     )
     return resultado[0]
 }
+
+// Sobrecarga con latitud y longitud numéricas directamente
+fun distanciaMetros(desde: Posicion, latitud: Double, longitud: Double): Float {
+    val resultado = FloatArray(1)
+    Location.distanceBetween(
+        desde.latitud, desde.longitud,
+        latitud, longitud,
+        resultado
+    )
+    return resultado[0]
+}

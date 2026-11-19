@@ -3,20 +3,26 @@ package com.vasquez.campusgps.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vasquez.campusgps.data.BuscadorRepository
 import com.vasquez.campusgps.data.LugaresRepository
 import com.vasquez.campusgps.data.UbicacionNoDisponibleException
 import com.vasquez.campusgps.data.UbicacionRepository
 import com.vasquez.campusgps.model.AnimoGuia
+import com.vasquez.campusgps.model.DestinoBusqueda
+import com.vasquez.campusgps.model.EstadoBusqueda
 import com.vasquez.campusgps.model.Lugar
 import com.vasquez.campusgps.model.LugarConDistancia
 import com.vasquez.campusgps.model.MensajeGuia
 import com.vasquez.campusgps.model.Posicion
+import com.vasquez.campusgps.model.ResultadoBusqueda
 import com.vasquez.campusgps.model.TipoError
 import com.vasquez.campusgps.model.UbicacionUi
 import com.vasquez.campusgps.util.distanciaMetros
 import com.vasquez.campusgps.util.formatearDistancia
 import com.vasquez.campusgps.util.minutosAPie
 import com.vasquez.campusgps.util.rumboCardinal
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +34,8 @@ import kotlinx.coroutines.launch
 
 class MapaViewModel(
     private val ubicacionRepo: UbicacionRepository,
-    private val lugaresRepo: LugaresRepository
+    private val lugaresRepo: LugaresRepository,
+    private val buscadorRepo: BuscadorRepository
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow<UbicacionUi>(UbicacionUi.Inicial)
@@ -69,6 +76,128 @@ class MapaViewModel(
         }
     }
 
+    // Estado del buscador de lugares
+    private val _consulta = MutableStateFlow("")
+    val consulta: StateFlow<String> = _consulta.asStateFlow()
+
+    private val _busqueda = MutableStateFlow<EstadoBusqueda>(EstadoBusqueda.Inactiva)
+    val busqueda: StateFlow<EstadoBusqueda> = _busqueda.asStateFlow()
+
+    private val _destino = MutableStateFlow<DestinoBusqueda?>(null)
+    val destino: StateFlow<DestinoBusqueda?> = _destino.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    private companion object {
+        const val PAUSA_SUGERENCIAS_MS = 350L
+    }
+
+    private fun String.sinTildes(): String {
+        return java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+            .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+            .lowercase()
+    }
+
+    private fun obtenerLocales(q: String): List<ResultadoBusqueda> {
+        if (q.length < 3) return emptyList()
+        val queryNorm = q.sinTildes().trim()
+        return lugaresRepo.obtenerLugares()
+            .filter { l ->
+                l.nombre.sinTildes().contains(queryNorm) || l.categoria.sinTildes().contains(queryNorm)
+            }
+            .map { l ->
+                ResultadoBusqueda(
+                    nombre = l.nombre,
+                    detalle = l.categoria,
+                    latitud = l.latitud,
+                    longitud = l.longitud,
+                    lugarId = l.id
+                )
+            }
+    }
+
+    fun cambiarConsulta(texto: String) {
+        _consulta.value = texto
+        searchJob?.cancel()
+        if (texto.trim().length < 3) {
+            _busqueda.value = EstadoBusqueda.Inactiva
+            return
+        }
+        val locales = obtenerLocales(texto)
+        // Los del campus aparecen al instante; los del mapa llegan solos tras una breve pausa al escribir
+        _busqueda.value = if (locales.isNotEmpty()) {
+            EstadoBusqueda.Resultados(locales = locales, externos = emptyList())
+        } else {
+            EstadoBusqueda.Inactiva
+        }
+        searchJob = viewModelScope.launch {
+            delay(PAUSA_SUGERENCIAS_MS)
+            buscadorRepo.buscar(texto.trim()).onSuccess { externos ->
+                // Sugerencias silenciosas: si falla o no hay nada, se deja lo que ya se mostraba
+                if (externos.isNotEmpty() || locales.isNotEmpty()) {
+                    _busqueda.value = EstadoBusqueda.Resultados(locales = locales, externos = externos)
+                }
+            }
+        }
+    }
+
+    fun buscarEnMapa() {
+        val q = _consulta.value.trim()
+        if (q.length < 3) return
+
+        _busqueda.value = EstadoBusqueda.Buscando
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            val locales = obtenerLocales(q)
+            buscadorRepo.buscar(q)
+                .onSuccess { externos ->
+                    _busqueda.value = EstadoBusqueda.Resultados(locales = locales, externos = externos)
+                }
+                .onFailure {
+                    _busqueda.value = EstadoBusqueda.Error("No pude buscar ahora. Revisa tu conexión e intenta de nuevo")
+                }
+        }
+    }
+
+    fun elegirResultado(r: ResultadoBusqueda) {
+        if (r.lugarId != null) {
+            seleccionar(r.lugarId)
+            _destino.value = null
+            _consulta.value = ""
+            _busqueda.value = EstadoBusqueda.Inactiva
+        } else {
+            _seleccionado.value = null
+            val est = _estado.value
+            val pos = if (est is UbicacionUi.Lista) est.posicion else null
+
+            val (metros, minutos, rumbo) = if (pos != null) {
+                val m = distanciaMetros(pos, r.latitud, r.longitud)
+                Triple(m, minutosAPie(m), rumboCardinal(pos, r.latitud, r.longitud))
+            } else {
+                Triple(null, null, null)
+            }
+
+            _destino.value = DestinoBusqueda(
+                nombre = r.nombre,
+                detalle = r.detalle,
+                latitud = r.latitud,
+                longitud = r.longitud,
+                metros = metros,
+                minutos = minutos,
+                rumbo = rumbo
+            )
+            _consulta.value = ""
+            _busqueda.value = EstadoBusqueda.Inactiva
+        }
+    }
+
+    fun limpiarBusqueda() {
+        _consulta.value = ""
+        _busqueda.value = EstadoBusqueda.Inactiva
+        _destino.value = null
+        _seleccionado.value = null
+    }
+
     // El primero de la lista que ya tiene distancia calculada (null si aún no hay ubicación)
     val masCercano: StateFlow<Lugar?> = lugares
         .map { lista -> lista.firstOrNull { it.metros != null }?.lugar }
@@ -78,10 +207,26 @@ class MapaViewModel(
         estado,
         lugares,
         seleccionado,
-        masCercano
-    ) { est, listaLugares, selId, cercano ->
-        when (est) {
-            is UbicacionUi.Error -> {
+        masCercano,
+        busqueda,
+        destino
+    ) { flowArray ->
+        @Suppress("UNCHECKED_CAST")
+        val est = flowArray[0] as UbicacionUi
+        @Suppress("UNCHECKED_CAST")
+        val listaLugares = flowArray[1] as List<LugarConDistancia>
+        @Suppress("UNCHECKED_CAST")
+        val selId = flowArray[2] as Int?
+        @Suppress("UNCHECKED_CAST")
+        val cercano = flowArray[3] as Lugar?
+        @Suppress("UNCHECKED_CAST")
+        val busqState = flowArray[4] as EstadoBusqueda
+        @Suppress("UNCHECKED_CAST")
+        val destState = flowArray[5] as DestinoBusqueda?
+
+        when {
+            // Error de ubicación
+            est is UbicacionUi.Error -> {
                 val texto = if (est.tipo == TipoError.GPS_APAGADO) {
                     "Uy, parece que el GPS está apagado. Actívalo y lo intentamos de nuevo"
                 } else {
@@ -89,13 +234,33 @@ class MapaViewModel(
                 }
                 MensajeGuia(texto, AnimoGuia.PREOCUPADO)
             }
-            is UbicacionUi.Buscando -> {
+            // Buscando ubicación
+            est is UbicacionUi.Buscando -> {
                 MensajeGuia("Buscando tu ubicación…", AnimoGuia.PENSANDO)
             }
-            is UbicacionUi.Lista -> {
+            // Error de búsqueda
+            busqState is EstadoBusqueda.Error -> {
+                MensajeGuia(busqState.mensaje, AnimoGuia.PREOCUPADO)
+            }
+            // Búsqueda en mapa en curso
+            busqState is EstadoBusqueda.Buscando -> {
+                MensajeGuia("Buscando en el mapa…", AnimoGuia.PENSANDO)
+            }
+            // Destino de búsqueda activo
+            destState != null -> {
+                if (destState.metros != null && destState.minutos != null && destState.rumbo != null) {
+                    val dist = formatearDistancia(destState.metros)
+                    val texto = "Encontré ${destState.nombre} · $dist · unos ${destState.minutos} min a pie, hacia el ${destState.rumbo}."
+                    MensajeGuia(texto, AnimoGuia.CONTENTO)
+                } else {
+                    val texto = "Encontré ${destState.nombre}. Pulsa «Obtener mi ubicación» y te digo qué tan lejos está."
+                    MensajeGuia(texto, AnimoGuia.CONTENTO)
+                }
+            }
+            // Lugar seleccionado del campus
+            selId != null && est is UbicacionUi.Lista -> {
                 val pos = est.posicion
-                val lugarSel = selId?.let { id -> listaLugares.firstOrNull { it.lugar.id == id } }
-
+                val lugarSel = listaLugares.firstOrNull { it.lugar.id == selId }
                 if (lugarSel != null && lugarSel.metros != null) {
                     val lugar = lugarSel.lugar
                     val dist = formatearDistancia(lugarSel.metros)
@@ -106,7 +271,14 @@ class MapaViewModel(
 
                     val texto = "$prefijo${lugar.nombre} (${lugar.categoria}) · $dist · unos $min min a pie, hacia el $rumbo"
                     MensajeGuia(texto, AnimoGuia.CONTENTO)
-                } else if (cercano != null) {
+                } else {
+                    MensajeGuia("¡Estás aquí!", AnimoGuia.CONTENTO)
+                }
+            }
+            // Lista / Ubicación de usuario
+            est is UbicacionUi.Lista -> {
+                val pos = est.posicion
+                if (cercano != null) {
                     val cercanoItem = listaLugares.firstOrNull { it.lugar.id == cercano.id }
                     if (cercanoItem != null && cercanoItem.metros != null) {
                         val dist = formatearDistancia(cercanoItem.metros)
@@ -120,7 +292,8 @@ class MapaViewModel(
                     MensajeGuia("¡Estás aquí!", AnimoGuia.CONTENTO)
                 }
             }
-            UbicacionUi.Inicial -> {
+            // Inicial
+            else -> {
                 MensajeGuia("¡Hola! Soy Chaski. Pulsa el botón y te muestro dónde estás.", AnimoGuia.NORMAL)
             }
         }
@@ -162,12 +335,24 @@ class MapaViewModel(
         _lugares.value = lugaresRepo.obtenerLugares()
             .map { LugarConDistancia(it, distanciaMetros(pos, it)) }
             .sortedBy { it.metros }
+
+        _destino.value?.let { dest ->
+            val m = distanciaMetros(pos, dest.latitud, dest.longitud)
+            _destino.value = dest.copy(
+                metros = m,
+                minutos = minutosAPie(m),
+                rumbo = rumboCardinal(pos, dest.latitud, dest.longitud)
+            )
+        }
+
         // Comprobación del Paso 5 (se ve en Logcat, filtra por "Distancias")
         _lugares.value.forEach { Log.d("Distancias", "${it.lugar.nombre}: ${it.metros} m") }
     }
 
     fun seleccionar(id: Int?) {
         _seleccionado.value = id
+        // Elegir un lugar del campus reemplaza al destino de una búsqueda externa
+        if (id != null) _destino.value = null
     }
 
     // Convierte la excepción en un error con mensaje claro y un tipo para elegir la acción

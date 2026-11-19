@@ -40,6 +40,9 @@ fun PantallaMapa(vm: MapaViewModel) {
     val seleccionado by vm.seleccionado.collectAsState()
     val masCercano by vm.masCercano.collectAsState()
     val mensajeGuia by vm.mensajeGuia.collectAsState()
+    val consulta by vm.consulta.collectAsState()
+    val busqueda by vm.busqueda.collectAsState()
+    val destino by vm.destino.collectAsState()
     val contexto = LocalContext.current
 
     val lanzador = rememberLauncherForActivityResult(
@@ -90,7 +93,7 @@ fun PantallaMapa(vm: MapaViewModel) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // El mapa y la mascota Chaski ocupan el espacio libre
+            // El mapa, la barra de búsqueda y la mascota Chaski ocupan el espacio libre
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -101,6 +104,7 @@ fun PantallaMapa(vm: MapaViewModel) {
                     lugares = lugares,
                     seleccionado = seleccionado,
                     masCercanoId = masCercano?.id,
+                    destino = destino,
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -110,6 +114,18 @@ fun PantallaMapa(vm: MapaViewModel) {
                         .align(Alignment.BottomStart)
                         // Deja libre el logo de Google (abajo a la izquierda del mapa)
                         .padding(start = 12.dp, bottom = 40.dp)
+                )
+
+                BarraBusqueda(
+                    consulta = consulta,
+                    estado = busqueda,
+                    onConsultaCambia = { vm.cambiarConsulta(it) },
+                    onBuscar = { vm.buscarEnMapa() },
+                    onElegir = { vm.elegirResultado(it) },
+                    onLimpiar = { vm.limpiarBusqueda() },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 )
             }
 
