@@ -1,6 +1,7 @@
 package com.vasquez.campusgps.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -13,6 +14,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -21,8 +24,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -55,7 +61,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathMeasure
@@ -63,6 +72,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -81,16 +91,47 @@ fun PantallaInicio(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val isDark = isSystemInDarkTheme()
 
     // Paleta del tema
-    val backgroundColor = MaterialTheme.colorScheme.background
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    // Animación continua de flotación y balanceo de Chaski
+    // 1. Cielo con degradado vertical a pantalla completa
+    val skyGradient = if (isDark) {
+        Brush.verticalGradient(
+            colors = listOf(Color(0xFF0B1622), Color(0xFF1D3040))
+        )
+    } else {
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.0f to Color(0xFF6DB9EA),
+                0.7f to Color(0xFFCFE9F4),
+                1.0f to Color(0xFFF2EBDD)
+            )
+        )
+    }
+
+    // Filtro de oscuridad para las capas de Lima en modo noche (~0.45 de brillo)
+    val darkFilter = if (isDark) {
+        ColorFilter.colorMatrix(
+            ColorMatrix(
+                floatArrayOf(
+                    0.45f, 0f, 0f, 0f, 0f,
+                    0f, 0.45f, 0f, 0f, 0f,
+                    0f, 0f, 0.45f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+    } else null
+
+    // Animaciones continuas de fondo (Sol, Luna, Nubes, Parallax, Combi, Flotado de Chaski)
     val infiniteTransition = rememberInfiniteTransition(label = "ChaskiInicioTransition")
+
+    // Flotado continuo de Chaski
     val floatY by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = -10f,
@@ -111,7 +152,61 @@ fun PantallaInicio(
         label = "SwayRotation"
     )
 
-    // Animación de pulso para el botón Comenzar
+    // Animación de nubes (desplazamiento continuo ±20.dp, 14 s)
+    val nubesOffset by infiniteTransition.animateFloat(
+        initialValue = -20f,
+        targetValue = 20f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "NubesOffset"
+    )
+
+    // Parallax: capa lejos (±4.dp, 16 s) y capa ciudad (±8.dp, 12 s)
+    val lejosOffset by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(16000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "LejosOffset"
+    )
+
+    val ciudadOffset by infiniteTransition.animateFloat(
+        initialValue = -8f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CiudadOffset"
+    )
+
+    // Combi cruzando la calle (bucle de 9 s)
+    val combiProgress by infiniteTransition.animateFloat(
+        initialValue = -0.25f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(9000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "CombiProgress"
+    )
+
+    // Titileo suave de estrellas en modo oscuro
+    val starAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "StarAlpha"
+    )
+
+    // Pulso del botón Comenzar
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = 1.06f,
@@ -122,7 +217,7 @@ fun PantallaInicio(
         label = "PulseScale"
     )
 
-    // Salto con rebote (spring) al tocar a Chaski
+    // Reacciones táctiles
     var jumpTarget by remember { mutableFloatStateOf(0f) }
     val jumpY by animateFloatAsState(
         targetValue = jumpTarget,
@@ -133,7 +228,18 @@ fun PantallaInicio(
         label = "ChaskiJump"
     )
 
-    // Animación de ruta del mapa en segundo plano
+    var combiHonkVisible by remember { mutableStateOf(false) }
+    var combiBounceTarget by remember { mutableFloatStateOf(0f) }
+    val combiBounceY by animateFloatAsState(
+        targetValue = combiBounceTarget,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "CombiBounce"
+    )
+
+    // Ruta punteada y caída del pin
     var pathProgressTarget by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) {
         pathProgressTarget = 1f
@@ -161,30 +267,110 @@ fun PantallaInicio(
         label = "CompassRotation"
     )
 
-    Box(
+    // Posiciones fijas para las 25 estrellas en modo oscuro
+    val starPositions = remember {
+        listOf(
+            Offset(0.10f, 0.05f), Offset(0.25f, 0.12f), Offset(0.42f, 0.04f), Offset(0.60f, 0.10f), Offset(0.78f, 0.06f),
+            Offset(0.88f, 0.15f), Offset(0.15f, 0.22f), Offset(0.35f, 0.18f), Offset(0.52f, 0.25f), Offset(0.70f, 0.20f),
+            Offset(0.05f, 0.30f), Offset(0.92f, 0.28f), Offset(0.20f, 0.35f), Offset(0.48f, 0.32f), Offset(0.65f, 0.38f),
+            Offset(0.82f, 0.34f), Offset(0.30f, 0.42f), Offset(0.58f, 0.45f), Offset(0.12f, 0.48f), Offset(0.75f, 0.46f),
+            Offset(0.40f, 0.10f), Offset(0.85f, 0.08f), Offset(0.28f, 0.28f), Offset(0.68f, 0.12f), Offset(0.95f, 0.40f)
+        )
+    }
+
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(skyGradient)
     ) {
-        // Fondo decorativo sutil dibujado con Canvas (calles y ruta punteada animada)
+        val totalWidthDp = maxWidth
+
+        // Estrellas en la parte superior en modo oscuro (Canvas)
+        if (isDark) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                starPositions.forEachIndexed { i, pos ->
+                    val alphaValue = ((starAlpha + i * 0.15f) % 1f * 0.7f + 0.3f).coerceIn(0.2f, 1f)
+                    drawCircle(
+                        color = Color.White.copy(alpha = alphaValue),
+                        center = Offset(pos.x * w, pos.y * h * 0.5f),
+                        radius = (1.5f + (i % 3) * 0.8f).dp.toPx()
+                    )
+                }
+            }
+        }
+
+        // Sol o Luna en la esquina superior derecha
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = 12.dp, end = 16.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            if (!isDark) {
+                // 2. Sol de día (80.dp), girando lento (1 vuelta / 40s) y con leve pulso
+                val sunRotation by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(40000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "SunRotation"
+                )
+                val sunScale by infiniteTransition.animateFloat(
+                    initialValue = 1.0f,
+                    targetValue = 1.05f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "SunScale"
+                )
+
+                Image(
+                    painter = painterResource(id = R.drawable.ic_lima_sol),
+                    contentDescription = "Sol de Lima",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .scale(sunScale)
+                        .rotate(sunRotation)
+                )
+            } else {
+                // 2. Luna de noche (60.dp) con flotado vertical sutil
+                val moonFloatY by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = -6f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2500, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "MoonFloatY"
+                )
+
+                Image(
+                    painter = painterResource(id = R.drawable.ic_lima_luna),
+                    contentDescription = "Luna sobre Lima",
+                    modifier = Modifier
+                        .size(60.dp)
+                        .offset(y = moonFloatY.dp)
+                )
+            }
+        }
+
+        // 3. Ruta punteada animada sobre el cielo y pin que cae con rebote
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val streetColor = primaryColor.copy(alpha = 0.07f)
 
-            // Líneas de calles decorativas
-            drawLine(streetColor, Offset(w * 0.1f, 0f), Offset(w * 0.1f, h), strokeWidth = 14.dp.toPx())
-            drawLine(streetColor, Offset(w * 0.85f, 0f), Offset(w * 0.85f, h), strokeWidth = 10.dp.toPx())
-            drawLine(streetColor, Offset(0f, h * 0.25f), Offset(w, h * 0.25f), strokeWidth = 12.dp.toPx())
-            drawLine(streetColor, Offset(0f, h * 0.72f), Offset(w, h * 0.72f), strokeWidth = 14.dp.toPx())
-
-            // Ruta punteada animada que termina en un pin con rebote
             val routePath = Path().apply {
-                moveTo(w * 0.18f, h * 0.2f)
+                moveTo(w * 0.18f, h * 0.18f)
                 cubicTo(
-                    w * 0.45f, h * 0.15f,
-                    w * 0.75f, h * 0.35f,
-                    w * 0.5f, h * 0.52f
+                    w * 0.45f, h * 0.12f,
+                    w * 0.78f, h * 0.32f,
+                    w * 0.50f, h * 0.48f
                 )
             }
 
@@ -195,9 +381,10 @@ fun PantallaInicio(
             val partialPath = Path()
             pathMeasure.getSegment(0f, pathLength * pathProgress, partialPath, true)
 
+            // Ruta punteada en color secundario contrastante
             drawPath(
                 path = partialPath,
-                color = secondaryColor.copy(alpha = 0.45f),
+                color = secondaryColor.copy(alpha = if (isDark) 0.85f else 0.7f),
                 style = Stroke(
                     width = 4.dp.toPx(),
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(14.dp.toPx(), 10.dp.toPx()), 0f),
@@ -205,7 +392,7 @@ fun PantallaInicio(
                 )
             )
 
-            // Pin de mapa al final de la ruta
+            // Pin de mapa al finalizar la ruta
             if (pathProgress > 0.85f) {
                 val endOffset = pathMeasure.getPosition(pathLength)
                 val pinX = endOffset.x
@@ -225,43 +412,148 @@ fun PantallaInicio(
             }
         }
 
-        // Contenido interactivo desplazable para adaptarse a pantallas pequeñas
+        // 4 y 5. Capas de la ciudad de Lima en el fondo, alineadas abajo (Alignment.BottomCenter)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // (a) Nubes en la parte alta
+            Image(
+                painter = painterResource(id = R.drawable.ic_lima_nubes),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                alpha = if (isDark) 0.15f else 0.85f,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center)
+                    .offset(x = nubesOffset.dp, y = (-70).dp)
+            )
+
+            // (b) Capa Lejos (Cerros y Cruz del Cerro San Cristóbal)
+            Image(
+                painter = painterResource(id = R.drawable.ic_lima_lejos),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = darkFilter,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .scale(1.06f)
+                    .offset(x = lejosOffset.dp)
+            )
+
+            // (b) Capa Ciudad (Balcones coloniales, catedral, edificios, faro)
+            Image(
+                painter = painterResource(id = R.drawable.ic_lima_ciudad),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = darkFilter,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .scale(1.06f)
+                    .offset(x = ciudadOffset.dp)
+            )
+
+            // (b) Capa Calle (Pistas, árboles y faroles)
+            Image(
+                painter = painterResource(id = R.drawable.ic_lima_calle),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = darkFilter,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // (c y d) Combi cruzando la calle con globito "¡Piii, piii!"
+            val combiX = (combiProgress * (totalWidthDp.value + 120) - 60).dp
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomStart)
+                    .offset(x = combiX, y = (-26).dp + combiBounceY.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AnimatedVisibility(
+                        visible = combiHonkVisible,
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut()
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFD9733B)),
+                            shadowElevation = 6.dp,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        ) {
+                            Text(
+                                text = "¡Piii, piii!",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD9733B),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_lima_combi),
+                        contentDescription = "Combi de Lima",
+                        colorFilter = darkFilter,
+                        modifier = Modifier
+                            .size(width = 64.dp, height = 36.dp)
+                            .clickable {
+                                coroutineScope.launch {
+                                    combiBounceTarget = -14f
+                                    combiHonkVisible = true
+                                    delay(140)
+                                    combiBounceTarget = 0f
+                                    delay(860)
+                                    combiHonkVisible = false
+                                }
+                            }
+                    )
+                }
+            }
+        }
+
+        // 6. Primer plano (Títulos, Chaski, Globo de diálogo, "?", Brújula y Botón "Comenzar")
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // La app usa pantalla completa: dejamos espacio para las barras del sistema
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 32.dp),
+                .padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
 
-            // Encabezado con título principal
+            // Encabezado legible sobre el cielo
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 12.dp)
+                modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
                     text = "CampusGPS",
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 34.sp),
-                    color = primaryColor
+                    color = if (isDark) primaryColor else Color(0xFF12301F),
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Tu guía por el campus",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = onSurfaceVariantColor
+                    color = if (isDark) onSurfaceVariantColor else Color(0xFF1E2A24),
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            // Sección Central: Chaski, Globo de Diálogo, Signos "?" y Brújula
+            // Sección Central: Chaski parado en la ciudad, Globo de diálogo, Signos "?" y Brújula
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp)
+                    .padding(vertical = 12.dp)
             ) {
 
                 // Signos de interrogación "?" flotando y desvaneciéndose alrededor
@@ -282,7 +574,7 @@ fun PantallaInicio(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.5.dp, primaryColor),
-                        shadowElevation = 6.dp
+                        shadowElevation = 8.dp
                     ) {
                         AnimatedContent(
                             targetState = frase,
@@ -302,12 +594,12 @@ fun PantallaInicio(
                         }
                     }
 
-                    // Chaski (ic_chaski_perdido) grande al centro
+                    // Chaski (ic_chaski_perdido) grande al centro en primer plano
                     Image(
                         painter = painterResource(id = R.drawable.ic_chaski_perdido),
                         contentDescription = "Chaski perdido intentando leer un mapa",
                         modifier = Modifier
-                            .height(220.dp)
+                            .height(260.dp)
                             .offset(y = (floatY + jumpY).dp)
                             .rotate(swayRotation)
                             .clickable {
@@ -334,7 +626,7 @@ fun PantallaInicio(
                 )
             }
 
-            // Botón Comenzar en forma de píldora con animación de pulso
+            // Botón Comenzar en forma de píldora con elevación y animación de pulso
             Button(
                 onClick = onComenzar,
                 shape = CircleShape,
