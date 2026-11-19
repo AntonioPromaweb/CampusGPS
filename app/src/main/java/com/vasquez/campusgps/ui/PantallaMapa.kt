@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,7 @@ fun PantallaMapa(vm: MapaViewModel) {
     val lugares by vm.lugares.collectAsState()
     val seleccionado by vm.seleccionado.collectAsState()
     val masCercano by vm.masCercano.collectAsState()
+    val mensajeGuia by vm.mensajeGuia.collectAsState()
     val contexto = LocalContext.current
 
     val lanzador = rememberLauncherForActivityResult(
@@ -88,16 +90,28 @@ fun PantallaMapa(vm: MapaViewModel) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // El mapa ocupa el espacio libre
-            MapaUbicacion(
-                estado = estado,
-                lugares = lugares,
-                seleccionado = seleccionado,
-                masCercanoId = masCercano?.id,
+            // El mapa y la mascota Chaski ocupan el espacio libre
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-            )
+            ) {
+                MapaUbicacion(
+                    estado = estado,
+                    lugares = lugares,
+                    seleccionado = seleccionado,
+                    masCercanoId = masCercano?.id,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                ChaskiGuia(
+                    mensaje = mensajeGuia,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        // Deja libre el logo de Google (abajo a la izquierda del mapa)
+                        .padding(start = 12.dp, bottom = 40.dp)
+                )
+            }
 
             Column(
                 modifier = Modifier
