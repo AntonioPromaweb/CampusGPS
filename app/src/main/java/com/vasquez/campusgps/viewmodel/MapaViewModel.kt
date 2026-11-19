@@ -42,6 +42,33 @@ class MapaViewModel(
     private val _seleccionado = MutableStateFlow<Int?>(null)
     val seleccionado: StateFlow<Int?> = _seleccionado.asStateFlow()
 
+    // Control de la pantalla de inicio (bienvenida)
+    private val _mostrandoInicio = MutableStateFlow(true)
+    val mostrandoInicio: StateFlow<Boolean> = _mostrandoInicio.asStateFlow()
+
+    fun comenzar() {
+        _mostrandoInicio.value = false
+    }
+
+    // Frases de Chaski en la pantalla de inicio
+    private val frasesInicioList = listOf(
+        "¡Hola! Soy Chaski… creo que me perdí.",
+        "¿Alguien sabe dónde queda la Biblioteca?",
+        "Dicen que la cafetería está por allá… o por allá.",
+        "Tú sí sabes dónde estás. ¡Ayúdame a llegar!",
+        "¡Ya! Pulsa Comenzar y no me pierdo más."
+    )
+    private val _indiceFrase = MutableStateFlow(0)
+    val fraseInicio: StateFlow<String> = _indiceFrase
+        .map { index -> frasesInicioList[index.coerceIn(0, frasesInicioList.lastIndex)] }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), frasesInicioList.first())
+
+    fun tocarChaski() {
+        if (_indiceFrase.value < frasesInicioList.lastIndex) {
+            _indiceFrase.value += 1
+        }
+    }
+
     // El primero de la lista que ya tiene distancia calculada (null si aún no hay ubicación)
     val masCercano: StateFlow<Lugar?> = lugares
         .map { lista -> lista.firstOrNull { it.metros != null }?.lugar }

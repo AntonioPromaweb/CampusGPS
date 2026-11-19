@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import com.vasquez.campusgps.ui.PantallaMapa
+import com.vasquez.campusgps.ui.CampusApp
 import com.vasquez.campusgps.ui.theme.CampusGPSTheme
 import com.vasquez.campusgps.viewmodel.CampusViewModelFactory
 import com.vasquez.campusgps.viewmodel.MapaViewModel
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CampusGPSTheme {
-                PantallaMapa(vm)
+                CampusApp(vm)
             }
         }
     }
